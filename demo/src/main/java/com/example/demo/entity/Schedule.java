@@ -20,6 +20,6 @@ public class Schedule {
     // Example: ["MONDAY","WEDNESDAY","FRIDAY"]
 
     private List<String> times;
-    // Example: ["08:00","14:00","20:00"]
+    // names....
 
 }

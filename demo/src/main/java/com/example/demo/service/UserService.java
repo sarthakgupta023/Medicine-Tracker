@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,32 +16,37 @@ public class UserService {
 
     // save user
     public User saveUser(User user) {
-        return userRepo.save(user);
+        return userRepository.save(user);
     }
 
     // get user
     public User getUser(String id) {
 
-        Optional<User> user = userRepo.findById(id);
+        Optional<User> user = userRepository.findById(id);
 
         return user.orElse(null);
+    }
+
+    public List<User> getall() {
+
+        return userRepository.findAll();
     }
 
     // Get user by email (for login)
     public User getUserByEmail(String email) {
 
-        return userRepo.findByEmail(email);
+        return userRepository.findByEmail(email);
 
     }
 
     // Update password
     public User updatePassword(String email, String newPassword) {
 
-        User user = userRepo.findByEmail(email);
+        User user = userRepository.findByEmail(email);
 
         if (user != null) {
             user.setPassword(newPassword);
-            return userRepo.save(user);
+            return userRepository.save(user);
         }
         return null;
 
