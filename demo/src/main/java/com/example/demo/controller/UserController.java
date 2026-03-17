@@ -3,6 +3,7 @@ package com.example.demo.controller;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,8 +27,13 @@ public class UserController {
 
     // Signup User
     @PostMapping("/signup")
-    public User signup(@RequestBody User user) {
-        return userService.saveUser(user);
+    public ResponseEntity<?> signup(@RequestBody User user) {
+        User already = userService.getUser(user.getId());
+        if (already != null) {
+            return ResponseEntity.badRequest().body("false");
+        }
+        User saved_user = userService.saveUser(user);
+        return ResponseEntity.ok().body("true");
     }
 
     // Get User by ID
