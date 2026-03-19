@@ -33,10 +33,8 @@ public class UserService {
     }
 
     // Get user by email (for login)
-    public User getUserByEmail(String email) {
-
-        return userRepository.findByEmail(email);
-
+    public Optional<User> getUserByEmail(String email) {
+        return userRepository.findByEmail(email); // directly return Optional
     }
 
     // Update password

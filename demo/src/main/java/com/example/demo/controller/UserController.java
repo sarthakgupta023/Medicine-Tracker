@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,23 @@ public class UserController {
         return ResponseEntity.ok().body("true");
     }
 
+    // login user
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody User user) {
+        Optional<User> temp = userService.getUserByEmail(user.getEmail());
+        if (temp.isEmpty()) {
+            return ResponseEntity.badRequest().body("User doesn't Exist");
+        }
+        User actaul_user = temp.get();
+        String password = user.getPassword();
+        if (actaul_user.getPassword().equals(password)) {
+            // here comes our token response system;
+            return ResponseEntity.ok().body(null);
+        } else {
+            return ResponseEntity.badRequest().body("Wrong Credentials");
+        }
+    }
+
     // Get User by ID
     @GetMapping("/{id}")
     public User getUser(@PathVariable String id) {
@@ -52,4 +70,10 @@ public class UserController {
     public User updatePassword(@RequestParam String email, @RequestParam String newPassword) {
         return userService.updatePassword(email, newPassword);
     }
+
+    @GetMapping("/medicine/{id}")
+    public List<String> get_medicine(@PathVariable String id) {
+
+    }
+
 }
