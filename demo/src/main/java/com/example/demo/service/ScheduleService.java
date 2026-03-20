@@ -14,8 +14,16 @@ public class ScheduleService {
     @Autowired
     private ScheduleRepository scheduleRepository;
 
-    // ── save new schedule
-    public Schedule addSchedule(Schedule schedule) {
+    // ── save new OR update existing (delete old + save new)
+    public Schedule saveOrUpdate(Schedule schedule) {
+        Schedule existing = scheduleRepository.findByMedicineId(schedule.getMedicineId());
+
+        if (existing != null) {
+            // exists → delete old first
+            scheduleRepository.deleteByMedicineId(schedule.getMedicineId());
+        }
+
+        // save (works for both new and updated)
         return scheduleRepository.save(schedule);
     }
 
@@ -24,8 +32,13 @@ public class ScheduleService {
         return scheduleRepository.findByMedicineId(medicineId);
     }
 
-    // ── get all schedules for a user
+    // ── get ALL schedules for a user ✅ needed by home page
     public List<Schedule> getByUserId(String userId) {
         return scheduleRepository.findByUserId(userId);
+    }
+
+    // ── delete schedule by medicineId
+    public void deleteByMedicineId(String medicineId) {
+        scheduleRepository.deleteByMedicineId(medicineId);
     }
 }

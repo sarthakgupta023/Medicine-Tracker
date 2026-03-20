@@ -1,73 +1,105 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { api } from "../private";
+
 export default function Login() {
 
-  const [email,setEmail] = useState("");
-  const [password,setPassword] = useState("");
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [loading,  setLoading]  = useState(false);
 
   const handleLogin = async () => {
 
-    try{
-      const response = await axios.post(
-        `${api}/user/login`,
-        {
-          email: email,
-          password: password
-        }
-      );
+    // ✅ basic validation
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Error", "Please enter email and password");
+      return;
+    }
 
-      const token = response.data.token;
+    setLoading(true);
 
-      // save token
-    //   await AsyncStorage.setItem("token", token);
-    //   await AsyncStorage.setItem("userEmail", email);
-    //   await AsyncStorage.setItem("userId", response.data.userId);  
-
-      Alert.alert("Success","Login Successful");
-
-      // go to home page
-      router.replace({
-        pathname : "/home",
-        params : {email : email}
+    try {
+      const response = await axios.post(`${api}/user/login`, {
+        email:    email.trim(),
+        password: password.trim(),
       });
 
-    }
-    catch(error){
+      const token  = response.data.token;
+      const userId = response.data.userId;
 
-      console.log(error);
-      Alert.alert(error.data);
-    }
+      // ✅ save token, userId, email to AsyncStorage
+      await AsyncStorage.setItem("token",     token);
+      await AsyncStorage.setItem("userId",    userId);
+      await AsyncStorage.setItem("userEmail", email.trim());
 
+      Alert.alert("Success", "Login Successful");
+
+      // ✅ go to home — no need to pass email as param
+      // home reads it from AsyncStorage now
+      router.replace("/home");
+
+    } catch (error) {
+      console.log("Login error:", error);
+
+      // ✅ fixed error handling
+      const msg = error.response?.data?.message
+               || error.response?.data
+               || "Something went wrong";
+      Alert.alert("Error", msg);
+
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return(
-
+  return (
     <View style={styles.container}>
 
       <Text style={styles.title}>Login</Text>
 
-      <Text>Email</Text>
+      {/* Email */}
+      <Text style={styles.label}>Email</Text>
       <TextInput
         placeholder="Enter your email"
         style={styles.input}
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
 
-      <Text>Password</Text>
+      {/* Password */}
+      <Text style={styles.label}>Password</Text>
       <TextInput
         placeholder="Enter password"
         secureTextEntry
         style={styles.input}
         value={password}
         onChangeText={setPassword}
+        autoCapitalize="none"
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
+      {/* Login Button */}
+      <TouchableOpacity
+        style={[styles.button, loading && styles.buttonDisabled]}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        {loading
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={styles.buttonText}>Login</Text>
+        }
       </TouchableOpacity>
 
       {/* Signup Redirect */}
@@ -78,49 +110,66 @@ export default function Login() {
       </TouchableOpacity>
 
     </View>
-
   );
 }
 
 const styles = StyleSheet.create({
 
-  container:{
-    flex:1,
-    justifyContent:"center",
-    padding:20
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "#fff",
   },
 
-  title:{
-    fontSize:28,
-    fontWeight:"bold",
-    marginBottom:30,
-    textAlign:"center"
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 30,
+    textAlign: "center",
+    color: "#1a1a2e",
   },
 
-  input:{
-    borderWidth:1,
-    borderColor:"#ccc",
-    padding:12,
-    marginBottom:15,
-    borderRadius:8
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 6,
   },
 
-  button:{
-    backgroundColor:"#2E86DE",
-    padding:15,
-    borderRadius:8
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 12,
+    marginBottom: 15,
+    borderRadius: 8,
+    fontSize: 15,
+    color: "#1a1a2e",
   },
 
-  buttonText:{
-    color:"white",
-    textAlign:"center",
-    fontWeight:"bold"
+  button: {
+    backgroundColor: "#2E86DE",
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 5,
   },
 
-  link:{
-    marginTop:15,
-    textAlign:"center",
-    color:"blue"
-  }
+  buttonDisabled: {
+    backgroundColor: "#a0c4f1",
+  },
+
+  buttonText: {
+    color: "white",
+    textAlign: "center",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
+  link: {
+    marginTop: 15,
+    textAlign: "center",
+    color: "#2E86DE",
+    fontWeight: "500",
+  },
 
 });

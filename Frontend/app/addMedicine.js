@@ -1,10 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    BackHandler,
     ScrollView,
     StyleSheet,
     Text,
@@ -28,6 +29,16 @@ const DAY_FULL = {
   SUN: "SUNDAY",
 };
 
+const DAY_SHORT = {
+  MONDAY:    "MON",
+  TUESDAY:   "TUE",
+  WEDNESDAY: "WED",
+  THURSDAY:  "THU",
+  FRIDAY:    "FRI",
+  SATURDAY:  "SAT",
+  SUNDAY:    "SUN",
+};
+
 const MEAL_TIMES = [
   "Before Breakfast",
   "After Breakfast",
@@ -37,9 +48,19 @@ const MEAL_TIMES = [
   "After Dinner",
 ];
 
-// ─── Small reusable components ────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Section heading */
+function hasUnsavedChanges(name, quantity, startDate, selectedDays) {
+  return (
+    name.trim()         !== "" ||
+    quantity            !== "" ||
+    startDate           !== "" ||
+    selectedDays.length  > 0
+  );
+}
+
+// ─── SectionTitle ─────────────────────────────────────────────────────────────
+
 function SectionTitle({ number, title, subtitle }) {
   return (
     <View style={styles.sectionTitle}>
@@ -54,7 +75,8 @@ function SectionTitle({ number, title, subtitle }) {
   );
 }
 
-/** Day schedule row — shown once per selected day */
+// ─── DayScheduleRow ───────────────────────────────────────────────────────────
+
 function DayScheduleRow({ day, selectedTimes, onToggleTime }) {
   return (
     <View style={styles.dayScheduleBlock}>
@@ -83,22 +105,74 @@ function DayScheduleRow({ day, selectedTimes, onToggleTime }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AddMedicine() {
-  const { userId: paramUserId } = useLocalSearchParams();
 
-  // ── form state
-  const [name, setName] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [startDate, setStartDate] = useState("");          // "YYYY-MM-DD"
-  const [selectedDays, setSelectedDays] = useState([]);   // ["MON","WED",...]
-  // dayTimes: { MON: ["Before Breakfast","After Dinner"], WED: [...], ... }
-  const [dayTimes, setDayTimes] = useState({});
-  const [loading, setLoading] = useState(false);
+  const {
+    userId:      paramUserId,
+    editMode:    paramEditMode,
+    medicineId:  paramMedicineId,
+    name:        paramName,
+    quantity:    paramQuantity,
+    startDate:   paramStartDate,
+    days:        paramDays,
+    dayTimesMap: paramDayTimesMap,
+  } = useLocalSearchParams();
 
-  // ── toggle a day chip
+  const isEditMode = paramEditMode === "true";
+
+  // rebuild selectedDays from full names → short for edit mode
+  const initialDays = (() => {
+    if (!paramDays) return [];
+    try { return JSON.parse(paramDays).map((d) => DAY_SHORT[d] || d); }
+    catch { return []; }
+  })();
+
+  // rebuild dayTimes from dayTimesMap for edit mode
+  const initialDayTimes = (() => {
+    if (!paramDayTimesMap) return {};
+    try { return JSON.parse(paramDayTimesMap); }
+    catch { return {}; }
+  })();
+
+  const [name,         setName]         = useState(paramName      || "");
+  const [quantity,     setQuantity]     = useState(paramQuantity  || "");
+  const [startDate,    setStartDate]    = useState(paramStartDate || "");
+  const [selectedDays, setSelectedDays] = useState(initialDays);
+  const [dayTimes,     setDayTimes]     = useState(initialDayTimes);
+  const [loading,      setLoading]      = useState(false);
+
+  // ── confirm discard — uses router.replace for web compatibility
+  const confirmGoBack = () => {
+    if (hasUnsavedChanges(name, quantity, startDate, selectedDays)) {
+      Alert.alert(
+        "Discard Changes?",
+        "You have unsaved changes. Are you sure you want to go back?",
+        [
+          { text: "Stay",    style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => router.replace("/home"),   // ✅ replace not back
+          },
+        ]
+      );
+    } else {
+      router.replace("/home");   // ✅ replace not back
+    }
+  };
+
+  // ── Android hardware back
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => { confirmGoBack(); return true; }
+    );
+    return () => backHandler.remove();
+  }, [name, quantity, startDate, selectedDays]);
+
+  // ── toggle day chip
   const toggleDay = (day) => {
     setSelectedDays((prev) => {
       if (prev.includes(day)) {
-        // remove day + its times
         const next = { ...dayTimes };
         delete next[day];
         setDayTimes(next);
@@ -110,7 +184,7 @@ export default function AddMedicine() {
     });
   };
 
-  // ── toggle a meal time for a specific day
+  // ── toggle meal time for a day
   const toggleTime = (day, time) => {
     setDayTimes((prev) => {
       const current = prev[day] || [];
@@ -136,7 +210,9 @@ export default function AddMedicine() {
 
   // ── validation
   const validate = () => {
-    if (!name.trim()) { Alert.alert("Error", "Please enter medicine name"); return false; }
+    if (!name.trim()) {
+      Alert.alert("Error", "Please enter medicine name"); return false;
+    }
     if (!quantity || isNaN(quantity) || parseInt(quantity) <= 0) {
       Alert.alert("Error", "Please enter a valid quantity"); return false;
     }
@@ -155,57 +231,98 @@ export default function AddMedicine() {
     return true;
   };
 
-  // ── submit
+  // ── submit — handles both ADD and EDIT
   const handleSubmit = async () => {
     if (!validate()) return;
+    if (loading) return;   // ✅ prevent double tap
     setLoading(true);
 
     try {
       const userId = paramUserId || (await AsyncStorage.getItem("userId"));
 
-      // Build payload
-      // Medicine object
-      const medicinePayload = {
-        userId,
-        name: name.trim(),
-        quantity: parseInt(quantity),
-        startDate,                          // "YYYY-MM-DD"
-        active: true,
-        createdAt: new Date().toISOString(),
-      };
+      if (!userId) {
+        Alert.alert("Error", "Session expired. Please login again.");
+        router.replace("/login");
+        return;
+      }
 
-      // Schedule object
+      // schedule payload — same for both add and edit
       const schedulePayload = {
         userId,
-        days: selectedDays.map((d) => DAY_FULL[d]),   // full names for backend
-        // flatten all times across all days (unique)
-        times: [...new Set(Object.values(dayTimes).flat())],
-        // per-day times if your backend supports it
+        days:        selectedDays.map((d) => DAY_FULL[d]),
+        times:       [...new Set(Object.values(dayTimes).flat())],
         dayTimesMap: dayTimes,
       };
 
-      // POST medicine first → get its id
-      console.log("medicine api jaane se pehle")
-      const medRes = await axios.post(`${api}/medicine/add`, medicinePayload);
-      console.log("medicine api jaane se baad")
-      const medicineId = medRes.data.id;
+      if (isEditMode) {
+        // ── EDIT MODE
+        console.log("=== EDIT MODE ===");
 
-      //POST schedule with medicineId
-      await axios.post(`${api}/schedule/add`, {
-        ...schedulePayload,
-        medicineId,
-      });
-      console.log("sab shi hone ke baad")
-      Alert.alert("Success", `${name} added successfully!`, [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+        // 1 — update medicine quantity
+        await axios.put(`${api}/medicine/update/${paramMedicineId}`, {
+          quantity: parseInt(quantity),
+        });
+
+        // 2 — update schedule (saveOrUpdate handles delete + save)
+        await axios.post(`${api}/schedule/add`, {
+          ...schedulePayload,
+          medicineId: paramMedicineId,
+        });
+
+        Alert.alert("Success", `${name} updated successfully!`, [
+          {
+            text: "OK",
+            onPress: () => router.replace("/home"),   // ✅ replace not back
+          },
+        ]);
+
+      } else {
+        // ── ADD MODE
+        console.log("=== ADD MODE ===");
+
+        const medicinePayload = {
+          userId,
+          name:      name.trim(),
+          quantity:  parseInt(quantity),
+          startDate,
+          active:    true,
+          createdAt: new Date().toISOString(),
+        };
+
+        console.log("Medicine Payload:", JSON.stringify(medicinePayload));
+        console.log("URL:", `${api}/medicine/add`);
+
+        // 1 — save medicine
+        const medRes     = await axios.post(`${api}/medicine/add`, medicinePayload);
+        const medicineId = medRes.data.id;
+        console.log("Medicine saved, id:", medicineId);
+
+        // 2 — save schedule
+        await axios.post(`${api}/schedule/add`, {
+          ...schedulePayload,
+          medicineId,
+        });
+        console.log("Schedule saved");
+
+        Alert.alert("Success", `${name} added successfully!`, [
+          {
+            text: "OK",
+            onPress: () => router.replace("/home"),   // ✅ replace not back
+          },
+        ]);
+      }
 
     } catch (error) {
-      console.log("Add medicine error:", error);
-      const msg = error.response?.data?.message
-               || error.response?.data
-               || "Failed to add medicine";
-      Alert.alert("Error", msg);
+      console.log("Submit error:", error);
+      console.log("Status:", error.response?.status);
+      console.log("Data:",   error.response?.data);
+      console.log("URL:",    error.config?.url);
+
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data ||
+        "Something went wrong";
+      Alert.alert("Error", String(msg));
     } finally {
       setLoading(false);
     }
@@ -218,10 +335,16 @@ export default function AddMedicine() {
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={confirmGoBack}
+          style={styles.backBtn}
+          activeOpacity={0.8}
+        >
           <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Medicine</Text>
+        <Text style={styles.headerTitle}>
+          {isEditMode ? "Edit Medicine" : "Add Medicine"}
+        </Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -232,17 +355,18 @@ export default function AddMedicine() {
         keyboardShouldPersistTaps="handled"
       >
 
-        {/* ── 1. Medicine Name */}
+        {/* 1 — Name */}
         <SectionTitle number="1" title="Medicine Name" />
         <TextInput
-          style={styles.input}
+          style={[styles.input, isEditMode && styles.inputDisabled]}
           placeholder="e.g. Paracetamol 500mg"
           placeholderTextColor="#aaa"
           value={name}
           onChangeText={setName}
+          editable={!isEditMode}
         />
 
-        {/* ── 2. Quantity */}
+        {/* 2 — Quantity */}
         <SectionTitle number="2" title="Quantity" subtitle="Total number of tablets / capsules" />
         <TextInput
           style={styles.input}
@@ -253,30 +377,29 @@ export default function AddMedicine() {
           onChangeText={setQuantity}
         />
 
-        {/* ── 3. Start Date */}
+        {/* 3 — Start Date */}
         <SectionTitle number="3" title="Start Date" subtitle="Format: YYYY-MM-DD" />
         <TextInput
-          style={styles.input}
+          style={[styles.input, isEditMode && styles.inputDisabled]}
           placeholder="e.g. 2025-03-20"
           placeholderTextColor="#aaa"
           value={startDate}
           onChangeText={setStartDate}
           keyboardType="numbers-and-punctuation"
+          editable={!isEditMode}
         />
 
-        {/* ── 4. Days of Week */}
+        {/* 4 — Days */}
         <SectionTitle
           number="4"
           title="Days of the Week"
           subtitle="Select which days to take this medicine"
         />
-        {/* All days shortcut */}
         <TouchableOpacity style={styles.allDaysBtn} onPress={toggleAll}>
           <Text style={styles.allDaysText}>
             {selectedDays.length === ALL_DAYS.length ? "✓ Everyday selected" : "Select Everyday"}
           </Text>
         </TouchableOpacity>
-
         <View style={styles.daysRow}>
           {ALL_DAYS.map((day) => {
             const active = selectedDays.includes(day);
@@ -295,7 +418,7 @@ export default function AddMedicine() {
           })}
         </View>
 
-        {/* ── 5. Schedule per day */}
+        {/* 5 — Schedule per day */}
         {selectedDays.length > 0 && (
           <>
             <SectionTitle
@@ -314,9 +437,7 @@ export default function AddMedicine() {
           </>
         )}
 
-        {/* bottom padding */}
         <View style={{ height: 40 }} />
-
       </ScrollView>
 
       {/* Submit Button */}
@@ -329,7 +450,9 @@ export default function AddMedicine() {
         >
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.submitText}>💊  Save Medicine</Text>
+            : <Text style={styles.submitText}>
+                {isEditMode ? "💾  Update Medicine" : "💊  Save Medicine"}
+              </Text>
           }
         </TouchableOpacity>
       </View>
@@ -340,17 +463,13 @@ export default function AddMedicine() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const BLUE = "#2E86DE";
+const BLUE       = "#2E86DE";
 const LIGHT_BLUE = "#E8F4FF";
 
 const styles = StyleSheet.create({
 
-  root: {
-    flex: 1,
-    backgroundColor: "#F4F7FB",
-  },
+  root: { flex: 1, backgroundColor: "#F4F7FB" },
 
-  // ── header
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -363,193 +482,86 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
-  backArrow: {
-    fontSize: 20,
-    color: "#fff",
-    lineHeight: 22,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#fff",
-  },
+  backArrow:   { fontSize: 20, color: "#fff", lineHeight: 22 },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: "#fff" },
 
-  // ── scroll
-  scroll: { flex: 1 },
-  scrollContent: {
-    padding: 20,
-  },
+  scroll:        { flex: 1 },
+  scrollContent: { padding: 20 },
 
-  // ── section title
   sectionTitle: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 24,
-    marginBottom: 10,
+    flexDirection: "row", alignItems: "center",
+    gap: 12, marginTop: 24, marginBottom: 10,
   },
   sectionNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: BLUE,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: BLUE, alignItems: "center", justifyContent: "center",
   },
-  sectionNumberText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1a1a2e",
-  },
-  sectionSub: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 1,
-  },
+  sectionNumberText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  sectionLabel:      { fontSize: 16, fontWeight: "700", color: "#1a1a2e" },
+  sectionSub:        { fontSize: 12, color: "#999", marginTop: 1 },
 
-  // ── text input
   input: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#1a1a2e",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    backgroundColor: "#fff", borderRadius: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, color: "#1a1a2e",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
+  },
+  inputDisabled: {
+    backgroundColor: "#f0f0f0",
+    color: "#aaa",
   },
 
-  // ── all days button
   allDaysBtn: {
-    alignSelf: "flex-start",
-    backgroundColor: LIGHT_BLUE,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: BLUE,
+    alignSelf: "flex-start", backgroundColor: LIGHT_BLUE,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: 20, marginBottom: 12,
+    borderWidth: 1, borderColor: BLUE,
   },
-  allDaysText: {
-    color: BLUE,
-    fontWeight: "600",
-    fontSize: 13,
-  },
+  allDaysText: { color: BLUE, fontWeight: "600", fontSize: 13 },
 
-  // ── day chips row
-  daysRow: {
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-  },
+  daysRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   dayChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 24,
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: "#ddd",
-    minWidth: 52,
-    alignItems: "center",
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 24, backgroundColor: "#fff",
+    borderWidth: 1.5, borderColor: "#ddd",
+    minWidth: 52, alignItems: "center",
   },
-  dayChipActive: {
-    backgroundColor: BLUE,
-    borderColor: BLUE,
-  },
-  dayChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#888",
-  },
-  dayChipTextActive: {
-    color: "#fff",
-  },
+  dayChipActive:     { backgroundColor: BLUE, borderColor: BLUE },
+  dayChipText:       { fontSize: 13, fontWeight: "600", color: "#888" },
+  dayChipTextActive: { color: "#fff" },
 
-  // ── day schedule block
   dayScheduleBlock: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    backgroundColor: "#fff", borderRadius: 14,
+    padding: 14, marginBottom: 12,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 2,
   },
   dayScheduleLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: BLUE,
-    marginBottom: 10,
-    letterSpacing: 0.5,
+    fontSize: 14, fontWeight: "700", color: BLUE,
+    marginBottom: 10, letterSpacing: 0.5,
   },
-  timesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
+  timesGrid:          { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   timeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#F4F7FB",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 20, backgroundColor: "#F4F7FB",
+    borderWidth: 1, borderColor: "#e0e0e0",
   },
-  timeChipActive: {
-    backgroundColor: "#FFF3E0",
-    borderColor: "#E67E22",
-  },
-  timeChipText: {
-    fontSize: 12,
-    color: "#888",
-    fontWeight: "500",
-  },
-  timeChipTextActive: {
-    color: "#E67E22",
-    fontWeight: "700",
-  },
+  timeChipActive:     { backgroundColor: "#FFF3E0", borderColor: "#E67E22" },
+  timeChipText:       { fontSize: 12, color: "#888", fontWeight: "500" },
+  timeChipTextActive: { color: "#E67E22", fontWeight: "700" },
 
-  // ── footer submit
-  footer: {
-    padding: 20,
-    paddingBottom: 36,
-    backgroundColor: "#F4F7FB",
-  },
+  footer: { padding: 20, paddingBottom: 36, backgroundColor: "#F4F7FB" },
   submitBtn: {
-    backgroundColor: BLUE,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: "center",
-    shadowColor: BLUE,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: BLUE, paddingVertical: 16,
+    borderRadius: 16, alignItems: "center",
+    shadowColor: BLUE, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
-  submitBtnDisabled: {
-    backgroundColor: "#a0c4f1",
-  },
-  submitText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
+  submitBtnDisabled: { backgroundColor: "#a0c4f1" },
+  submitText: { color: "#fff", fontSize: 16, fontWeight: "700", letterSpacing: 0.5 },
 });

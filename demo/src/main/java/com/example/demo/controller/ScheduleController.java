@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,11 +24,11 @@ public class ScheduleController {
     @Autowired
     private ScheduleService scheduleService;
 
-    // ── POST add schedule
-    @PostMapping("/add")
+    // ── POST add or update schedule (saveOrUpdate handles both)
+    @PostMapping("/add") // ✅ removed duplicate
     public ResponseEntity<?> addSchedule(@RequestBody Schedule schedule) {
         try {
-            Schedule saved = scheduleService.addSchedule(schedule);
+            Schedule saved = scheduleService.saveOrUpdate(schedule);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Failed to save schedule: " + e.getMessage());
@@ -48,6 +49,20 @@ public class ScheduleController {
     @GetMapping("/user/{userId}")
     public ResponseEntity<?> getSchedulesByUser(@PathVariable String userId) {
         List<Schedule> schedules = scheduleService.getByUserId(userId);
+        if (schedules.isEmpty()) {
+            return ResponseEntity.status(404).body("No schedules found");
+        }
         return ResponseEntity.ok(schedules);
+    }
+
+    // ── DELETE schedule by medicineId
+    @DeleteMapping("/delete/{medicineId}")
+    public ResponseEntity<?> deleteSchedule(@PathVariable String medicineId) {
+        try {
+            scheduleService.deleteByMedicineId(medicineId);
+            return ResponseEntity.ok("Schedule deleted");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to delete schedule: " + e.getMessage());
+        }
     }
 }

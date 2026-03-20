@@ -20,11 +20,11 @@ public class User {
     private String name;
 
     @NotBlank
-    @Indexed(unique = true)
+    @Indexed(unique = true) // ✅ prevents duplicate emails in DB
     private String email;
 
     @NotBlank
     private String password;
 
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt; // ✅ set automatically at signup
 }

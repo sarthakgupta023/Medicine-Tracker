@@ -1,6 +1,7 @@
 package com.example.demo.entity;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -14,19 +15,22 @@ public class Schedule {
     @Id
     private String id;
 
-    private String medicineId; // reference to Medicine
+    private String medicineId; // reference to Medicine — never change after creation
 
-    private String userId;
+    private String userId; // reference to User — never change after creation
 
     private List<String> days;
     // ["MONDAY", "WEDNESDAY", "FRIDAY"]
-    // or ["EVERYDAY"] for daily medicines
 
     private List<String> times;
-    // "Before Breakfast"
-    // "After Breakfast"
-    // "Before Lunch"
-    // "After Lunch"
-    // "Before Dinner"
-    // "After Dinner"
+    // flat unique list of all timings across all days
+    // ["Before Breakfast", "After Dinner", "Before Lunch"]
+
+    private Map<String, List<String>> dayTimesMap;
+    // per day timing map
+    // {
+    // "MON": ["Before Breakfast", "After Dinner"],
+    // "WED": ["Before Lunch"],
+    // "FRI": ["Before Breakfast"]
+    // }
 }
