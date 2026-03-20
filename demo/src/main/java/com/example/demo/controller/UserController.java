@@ -29,8 +29,8 @@ public class UserController {
     // Signup User
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User user) {
-        User already = userService.getUser(user.getId());
-        if (already != null) {
+        Optional<User> already = userService.getUserByEmail(user.getEmail());
+        if (already.isEmpty() == false) {
             return ResponseEntity.badRequest().body("false");
         }
         User saved_user = userService.saveUser(user);

@@ -2,7 +2,7 @@ import axios from "axios";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { api } from "../provate";
+import { api } from "../private";
 export default function Login() {
 
   const [email,setEmail] = useState("");

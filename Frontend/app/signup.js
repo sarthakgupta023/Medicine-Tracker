@@ -2,7 +2,7 @@ import axios from "axios";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { api } from "../provate";
+import { api } from "../private";
 import styles from "../styles/signupStyles";
 export default function Signup() {
 
