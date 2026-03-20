@@ -10,10 +10,21 @@ import com.example.demo.repository.MedicineRepository;
 
 @Component
 public class MedicineService {
+
     @Autowired
     private MedicineRepository medicineRepository;
 
-    public List<Medicine> getall(String id) {
-        return medicineRepository.findByUserId(id);
+    // ── get all medicines for a user
+    public List<Medicine> getall(String userId) {
+        return medicineRepository.findByUserId(userId);
+    }
+
+    public List<Medicine> get() {
+        return medicineRepository.find();
+    }
+
+    // ── save new medicine
+    public Medicine addMedicine(Medicine medicine) {
+        return medicineRepository.save(medicine);
     }
 }

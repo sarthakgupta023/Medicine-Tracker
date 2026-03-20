@@ -15,17 +15,21 @@ public class Medicine {
     @Id
     private String id;
 
-    private String userId; // reference to User
+    private String userId;
 
     private String name;
 
-    private int quantity; // remaining tablets
+    private int quantity;
 
     private LocalDate startDate;
 
-    private int durationDays; // how many days medicine continues
+    private LocalDate endDate;
 
-    private int gapDays; // gap between doses
+    private int durationDays;
+
+    private int gapDays;
+
+    private boolean active;
 
     private LocalDateTime createdAt;
 }

@@ -22,7 +22,9 @@ export default function Login() {
       const token = response.data.token;
 
       // save token
-      //await AsyncStorage.setItem("token", token);
+    //   await AsyncStorage.setItem("token", token);
+    //   await AsyncStorage.setItem("userEmail", email);
+    //   await AsyncStorage.setItem("userId", response.data.userId);  
 
       Alert.alert("Success","Login Successful");
 

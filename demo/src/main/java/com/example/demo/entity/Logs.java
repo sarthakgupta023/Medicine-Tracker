@@ -1,5 +1,6 @@
 package com.example.demo.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.Id;
@@ -18,9 +19,17 @@ public class Logs {
 
     private String medicineId;
 
+    private String medicineName;
+
+    private LocalDate date;
+
+    private String time;
+
     private LocalDateTime scheduledTime;
 
     private boolean taken;
 
     private LocalDateTime takenAt;
+
+    private String notes;
 }

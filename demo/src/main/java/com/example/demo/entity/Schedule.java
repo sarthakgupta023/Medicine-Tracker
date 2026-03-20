@@ -16,10 +16,17 @@ public class Schedule {
 
     private String medicineId; // reference to Medicine
 
+    private String userId;
+
     private List<String> days;
-    // Example: ["MONDAY","WEDNESDAY","FRIDAY"]
+    // ["MONDAY", "WEDNESDAY", "FRIDAY"]
+    // or ["EVERYDAY"] for daily medicines
 
     private List<String> times;
-    // names....
-
+    // "Before Breakfast"
+    // "After Breakfast"
+    // "Before Lunch"
+    // "After Lunch"
+    // "Before Dinner"
+    // "After Dinner"
 }

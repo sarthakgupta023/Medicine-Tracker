@@ -32,9 +32,7 @@ function getScheduleDays(startDate, durationDays, gapDays) {
   }
   return result;
 }
-
 // ─── MedicineCard ────────────────────────────────────────────────────────────
-
 function MedicineCard({ item }) {
   const [expanded, setExpanded] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;

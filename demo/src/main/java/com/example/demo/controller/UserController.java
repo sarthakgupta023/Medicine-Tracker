@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,11 +45,15 @@ public class UserController {
         if (temp.isEmpty()) {
             return ResponseEntity.badRequest().body("User doesn't Exist");
         }
-        User actaul_user = temp.get();
+        User actual_user = temp.get();
         String password = user.getPassword();
-        if (actaul_user.getPassword().equals(password)) {
+        if (actual_user.getPassword().equals(password)) {
             // here comes our token response system;
-            return ResponseEntity.ok().body(null);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "token", "xxx",
+                    "userId", actual_user.getId(),
+                    "message", "Login Successful"));
         } else {
             return ResponseEntity.badRequest().body("Wrong Credentials");
         }
