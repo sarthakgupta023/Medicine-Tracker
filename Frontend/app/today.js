@@ -13,9 +13,7 @@ import {
     View,
 } from "react-native";
 import { api } from "../private";
-
 // ─── Constants ────────────────────────────────────────────────────────────────
-
 const DAYS = ["SUNDAY","MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY"];
 const todayDate = new Date().toISOString().split("T")[0]; // "2026-03-23"
 
@@ -276,7 +274,7 @@ export default function Today() {
       updatedTakenMap[item.id] = new Set([...updatedTakenMap[item.id], timing]);
       setTakenMap(updatedTakenMap);
 
-      // ✅ FIX 3 — medicines state mein bhi quantity update karo
+      // FIX 3 — medicines state mein bhi quantity update karo
       // taaki TimingButton ko updated quantity milti rahe re-render pe
       setMedicines((prev) =>
         prev.map((m) =>

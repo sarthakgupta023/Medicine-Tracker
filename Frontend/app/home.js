@@ -281,6 +281,12 @@ export default function Home() {
         <Text style={styles.sub}>{email || "your dashboard"}</Text>
       </View>
       <View style={styles.topBarRight}>  {/* yeh naya view add karo */}
+      <TouchableOpacity
+        onPress={() => router.push("/calendar")}
+        style={styles.todayBtn}
+      >
+        <Text style={styles.todayBtnText}>📆 Calendar</Text>
+      </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push({ pathname: "/today", params: { userId } })}
           style={styles.todayBtn}
