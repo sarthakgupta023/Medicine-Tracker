@@ -3,14 +3,14 @@ import axios from "axios";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { api } from "../private";
 
@@ -72,8 +72,7 @@ function MedicineCard({ item, schedule, onDelete }) {
   };
 
   return (
-    <Animated.View style={[styles.card, { height: cardHeight, overflow: "hidden" }]}>
-
+    <Animated.View style={[styles.card, item.quantity < 5 && styles.cardLow, { height: cardHeight, overflow: "hidden" }]}>
       {/* Header */}
       <TouchableOpacity style={styles.cardHeader} onPress={toggle} activeOpacity={0.8}>
         <View style={styles.cardLeft}>
@@ -276,15 +275,23 @@ export default function Home() {
     <View style={styles.container}>
 
       {/* Top Bar */}
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.greeting}>My Medicines 💊</Text>
-          <Text style={styles.sub}>{email || "your dashboard"}</Text>
-        </View>
+    <View style={styles.topBar}>
+      <View>
+        <Text style={styles.greeting}>My Medicines 💊</Text>
+        <Text style={styles.sub}>{email || "your dashboard"}</Text>
+      </View>
+      <View style={styles.topBarRight}>  {/* yeh naya view add karo */}
+        <TouchableOpacity
+          onPress={() => router.push({ pathname: "/today", params: { userId } })}
+          style={styles.todayBtn}
+        >
+          <Text style={styles.todayBtnText}>📅 Today</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+    </View>
 
       {/* Content */}
       {loading ? (
@@ -440,4 +447,16 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   addButtonText: { color: "#fff", fontSize: 16, fontWeight: "700", letterSpacing: 0.5 },
+  cardLow: {
+    backgroundColor: "#FFE8E8",
+    shadowColor: "#E74C3C",
+    borderWidth: 1,
+    borderColor: "#E74C3C",
+  },
+  topBarRight: { flexDirection: "row", gap: 8, alignItems: "center" },
+  todayBtn: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+  },
+  todayBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
 });

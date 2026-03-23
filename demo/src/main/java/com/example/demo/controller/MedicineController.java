@@ -25,14 +25,12 @@ public class MedicineController {
     @Autowired
     private MedicineService medicineService;
 
-    // ── GET all medicines (no filter — for testing only)
     @GetMapping("/getall")
     public ResponseEntity<?> getall() {
         List<Medicine> medicines = medicineService.get();
         return ResponseEntity.ok(medicines);
     }
 
-    // ── GET all medicines by userId
     @GetMapping("/{id}")
     public ResponseEntity<?> getMedicines(@PathVariable String id) {
         List<Medicine> medicines = medicineService.getall(id);
@@ -46,7 +44,6 @@ public class MedicineController {
     @PostMapping("/add")
     public ResponseEntity<?> addMedicine(@RequestBody Medicine medicine) {
         try {
-            // ✅ always save as new — createdAt + active set inside service
             Medicine saved = medicineService.addMedicine(medicine);
             return ResponseEntity.ok(saved);
         } catch (Exception e) {
@@ -54,13 +51,12 @@ public class MedicineController {
         }
     }
 
-    // ── PUT update medicine (quantity only)
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateMedicine(
             @PathVariable String id,
             @RequestBody Medicine medicine) {
         try {
-            // ✅ fixed method name from update_schedule → updateMedicine
+
             Medicine updated = medicineService.updateMedicine(id, medicine);
             if (updated == null) {
                 return ResponseEntity.status(404).body("Medicine not found");
@@ -71,7 +67,6 @@ public class MedicineController {
         }
     }
 
-    // ── DELETE medicine by id
     @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteMedicine(@PathVariable String id) {
         try {
