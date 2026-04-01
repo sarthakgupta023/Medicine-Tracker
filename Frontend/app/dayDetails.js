@@ -120,11 +120,11 @@ export default function DayDetails() {
           <View style={styles.summaryRow}>
             <View style={[styles.summaryChip, styles.summaryChipGreen]}>
               <Text style={[styles.summaryNum, { color: "#27AE60" }]}>{takenCount}</Text>
-              <Text style={[styles.summaryLabel, { color: "#27AE60" }]}>Taken</Text>
+              {/* <Text style={[styles.summaryLabel, { color: "#27AE60" }]}>Taken</Text> */}
             </View>
             <View style={[styles.summaryChip, styles.summaryChipRed]}>
               <Text style={[styles.summaryNum, { color: "#E74C3C" }]}>{missedCount}</Text>
-              <Text style={[styles.summaryLabel, { color: "#E74C3C" }]}>Missed</Text>
+              {/* <Text style={[styles.summaryLabel, { color: "#E74C3C" }]}>Missed</Text> */}
             </View>
             <View style={styles.summaryChip}>
               <Text style={styles.summaryNum}>{data.length}</Text>
